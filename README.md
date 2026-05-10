@@ -24,7 +24,7 @@
 - [x] 配置Git用户名和邮箱
 - [x] 创建公开仓库
 - [x] C++基础学习
-- [ ] 命令行小程序
+- [x] 命令行小程序
 #### 本周完成内容
      基础开发环境：
      安装 VSCode、C/C++ 插件、build-essential、CMake、Git。
@@ -38,11 +38,23 @@ Git 与 GitHub：
      维护根目录 README.md，记录每周学习过程。
      预留目录 W1/、W2/、W3/ 及 project/armor_detector/。
 
-C++ 基础：
-     函数：定义、调用、值传递 vs 引用传递、默认参数、重载。
-     引用：作为函数参数修改变量，理解别名概念。
-     简单类：成员变量、成员函数、对象创建。
-     STL 容器：vector、string、map 的基础操作。
+ C++ 基础学习
+- 学习函数定义、调用、值传递与引用传递、默认参数、函数重载。
+- 学习引用作为函数参数修改变量。
+- 学习简单类的定义与成员函数。
+- 学习 `vector`、`string`、`map` 的基本操作。
+- 了解头文件（`.h`）与源文件（`.cpp`）拆分的方法。
+- 掌握用 CMake 编译小工程（`split_demo` 示例）。
+- 编写了控制流（if/switch/for/while/do-while/break/continue/goto）的交互式示例。
+
+ 命令行小程序（必做+进阶）
+- 实现读取命令行参数的问候程序，支持多个参数依次问候。
+- 支持 `-h` 输出帮助信息。
+- 添加了缺省提示（无参数时提示用法）。
+- 编写了最小 `CMakeLists.txt`，使用 `build/` 目录完成 `cmake + make` 编译。
+- 将程序拆分为 `src/` 和 `include/`（`greet.h`、`greet.cpp`、`main.cpp`）。
+- 在 `CMakeLists.txt` 中添加了 `-Wall -Wextra` 编译警告选项。
+- 完成了 Git 分支操作：新建分支 `feature-greet-update`，修改文件后合并回 `main` 分支。
 
 #### 本周提交的代码
 
@@ -58,7 +70,10 @@ C++ 基础：
     
     W1/screenshots/ – 环境确认及运行截图（g++/cmake/git 版本、hello world 运行）
 
-    W1/cpp_examples/switch_examples.cpp(int类型与char类型S)
+    W1/cpp_examples/switch_examples.cpp(int类型与char类型S) 
+    W1/split_demo/`：头文件与源文件拆分 + CMake 示例。
+-   W1/greet_project/：命令行小程序的完整代码（拆分版）及 `CMakeLists.txt`。
+
 
 ### 遇到的问题和解决过程
 
@@ -75,26 +90,37 @@ C++ 基础：
 #### 问题3: 编译运行时在终端里显示没有目录文件
 解决方案：重新命名文件进行核查
 
-#### 问题四: 编写程序时多次字母拼错
+#### 问题4: 编写程序时多次字母拼错
 解决方案：仔细编写多次检查
 
-#### 问题五：运行程序是没有注意空格
+#### 问题5：运行程序是没有注意空格
 解决方案./jump_examples(./后面不要空格S)
 
-#### 问题 4：GitHub 网络不稳定，经常无法访问或 push 失败
+#### 问题 6：GitHub 网络不稳定，经常无法访问或 push 失败
 尝试方案：配置 SSH 密钥、安装 Watt Toolkit（Steam++）加速器。
 最终解决：对于必须上传的文件，改用网页分批上传；Git 命令行暂未能稳定使用，后续继续排查网络原因。
+#### 问题 7：VSCode IntelliSense 找不到头文件，显示红色波浪线
+- **原因**：编辑器默认不包含项目自定义的 `include` 目录。  
+- **解决**：按 `Ctrl+Shift+P` → `C/C++: Edit Configurations (UI)` → 在 `Include path` 中添加 `${workspaceFolder}/W1/greet_project/include`（不影响实际编译）。
+
+#### 问题 8：CMake 编译时因 `CMakeLists.txt` 拼写错误失败
+- **现象**：`cmake_minimum_required` 误写为 `cmake_minimum_reguired` 或 `VERDION`。  
+- **解决**：仔细核对关键字，确保拼写正确。
+
+#### 问题 9：VSCode 终端中 `cd` 进 `build` 目录后执行 `cmake ..` 提示找不到 `CMakeLists.txt`
+- **原因**：在错误的目录（如 `rm-training-2026/build`）执行了命令。  
+- **解决**：确保在包含 `CMakeLists.txt` 的项目根目录（如 `greet_project`）下创建 `build` 子目录，再执行 `cmake ..`。
+
+#### 问题 10：Git 分支操作中找不到 `从分支合并...` 选项
+- **解决**：使用命令面板（`Ctrl+Shift+P`）输入 `Git: 合并分支` 完成合并。
 
 #### 尚未解决的问题
+  
+  命令行 `git push` 因 `gnutls_handshake` 错误仍无法直接推送，依赖网页上传或加速器（有时有效）。  
+- CMake 的进阶用法（如条件编译、查找库）尚未深入。  
+- 类的继承与多态还未开始学习。  
+- 命令行小程序的分支合并 在 VSCode 图形界面中操作不够流畅，最终通过终端命令完成
+- 一直在利用deepseek一步步指令完成任务，技术还不成熟
 
- 命令行 git push 仍因 gnutls_handshake 错误失败，临时依赖网页上传。
- CMake 进阶用法（条件编译、查找依赖）尚不熟练。
- 类的继承和多态还未开始学习。
- 命令行小程序的完整功能（多参数、缺省提示、帮助）待本周完成。
 
-
-## 本周目标
-- [ ] 学完C++基础（函数、引用、类、vector/string/map）
-- [ ] 完成命令行小程序
-- [ ] 学会CMake基本使用
 
