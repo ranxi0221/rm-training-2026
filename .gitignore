@@ -1,20 +1,121 @@
-# 编译输出目录
-build/
-# 可执行文件（Windows/Linux/macOS 常见后缀）
+cat >> .gitignore << 'EOF'
+# 编译生成的可执行文件（常见命名）
+hello
+control_flow
+dowhile_examples
+jump_examples
+loop_examples
+function_tutorial
+reference_tutorial
+stl_tutorial
+class_example
+switch_examples
+greet
+calc
 *.exe
 *.out
 *.app
-# 中间目标文件
+
+# 中间文件
 *.o
 *.obj
-# CMake 生成的文件
+
+# CMake 生成的目录和文件
+build/
+**/build/
+install/
+**/install/
+log/
+**/log/
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
 Makefile
-# IDE 配置文件（可选）
+
+# IDE 配置
 .vscode/
 .idea/
+
+# 其他临时文件
+*.log
+*.tmp
+EOF# 编译生成的可执行文件（常见命名）
+hello
+control_flow
+dowhile_examples
+jump_examples
+loop_examples
+function_tutorial
+reference_tutorial
+stl_tutorial
+class_example
+switch_examples
+greet
+calc
+*.exe
+*.out
+*.app
+
+# 中间文件
+*.o
+*.obj
+
+# CMake 生成的目录和文件
+build/
+**/build/
+install/
+**/install/
+log/
+**/log/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# IDE 配置
+.vscode/
+.idea/
+
+# 其他临时文件
+*.log
+*.tmp
+# 编译生成的可执行文件（常见命名）
+hello
+control_flow
+dowhile_examples
+jump_examples
+loop_examples
+function_tutorial
+reference_tutorial
+stl_tutorial
+class_example
+switch_examples
+greet
+calc
+*.exe
+*.out
+*.app
+
+# 中间文件
+*.o
+*.obj
+
+# CMake 生成的目录和文件
+build/
+**/build/
+install/
+**/install/
+log/
+**/log/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# IDE 配置
+.vscode/
+.idea/
+
 # 其他临时文件
 *.log
 *.tmp
