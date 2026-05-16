@@ -4,7 +4,7 @@
 
 [x]安装 ROS2 Humble 桌面版
 [x]跑通 turtlesim（小海龟窗口出现，键盘控制移动）
-[x确认新终端里能正常使用 ros2 命令
+[x]确认新终端里能正常使用 ros2 命令
 [x]用 turtlesim 观察现成节点和话题
 [x]学会 ros2 topic list / echo / info
 [x]在 README.md 里写清 workspace / package / node / topic 分别是什么
