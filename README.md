@@ -126,25 +126,25 @@ Git 与 GitHub：
 
 ### 本周任务清单
 
-[x]安装 ROS2 Humble 桌面版
-[x]跑通 turtlesim（小海龟窗口出现，键盘控制移动）
-[x]确认新终端里能正常使用 ros2 命令
-[x]用 turtlesim 观察现成节点和话题
-[x]学会 ros2 topic list / echo / info
-[X]在 README.md 里写清 workspace / package / node / topic 分别是什么
-[X]创建一个 C++ 包 training_pkg
-[x]写 talker 和 listener 两个节点
-[x]colcon build 后能正常运行并持续打印
-[X]写一个 launch.py 同时启动两个节点
-[x]至少给 talker 加一个参数
-[x]能分别用命令行和 launch 跑通参数
-[x]学会 ros2 bag record / play / info
-[X]能用这些命令查看自己写的 talker / listener
-[x]给参数补默认值和范围说明
-[x]把参数写进单独的 YAML 再由 launch 加载
-[x]录一个短 bag，重新开新终端只靠 bag play 复现一次
-[x]再加一个最小节点，订阅你自己的话题并打印频率
-[x]补一个 service 或自定义消息的小尝试
+- [x]安装 ROS2 Humble 桌面版
+- [x]跑通 turtlesim（小海龟窗口出现，键盘控制移动）
+- [x]确认新终端里能正常使用 ros2 命令
+- [x]用 turtlesim 观察现成节点和话题
+- [x]学会 ros2 topic list / echo / info
+- [x]在 README.md 里写清 workspace / package / node / topic 分别是什么
+- [x]创建一个 C++ 包 training_pkg
+- [x]写 talker 和 listener 两个节点
+- [x]colcon build 后能正常运行并持续打印
+- [x]写一个 launch.py 同时启动两个节点
+- [x]至少给 talker 加一个参数
+- [x]能分别用命令行和 launch 跑通参数
+- [x]学会 ros2 bag record / play / info
+- [x]能用这些命令查看自己写的 talker / listener
+- [x]给参数补默认值和范围说明
+- [x]把参数写进单独的 YAML 再由 launch 加载
+- [x]录一个短 bag，重新开新终端只靠 bag play 复现一次
+- [x]再加一个最小节点，订阅你自己的话题并打印频率
+- [x]补一个 service 或自定义消息的小尝试
 
 
 ### 概念记录
