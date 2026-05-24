@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.10)
+project(armor_detector)
+find_package(OpenCV REQUIRED)
+add_executable(armor_detector src/armor_detector.cpp)
+target_link_libraries(armor_detector ${OpenCV_LIBS})
+add_executable(video_processor src/video_processor.cpp)
+target_link_libraries(video_processor ${OpenCV_LIBS})
