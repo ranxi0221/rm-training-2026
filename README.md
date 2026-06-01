@@ -367,3 +367,86 @@ ros2 service call /add_two_ints example_interfaces/srv/AddTwoInts "{a: 8, b: 5}"
     增加跟踪：利用前一帧检测结果预测当前帧位置。
 
     封装 ROS2 节点：将 processFrame 接入 ROS2 图像订阅回调，发布装甲板位置信息。
+
+## 第四周：装甲板检测项目（armor_detector）
+
+> **详细文档：** [project/armor_detector/README.md](project/armor_detector/README.md) — 包含完整参数速查表、W3→W4 迁移记录、调试建议等。
+
+### 项目功能
+
+基于 OpenCV + ROS2 的实时装甲板识别模块。从工业相机获取图像，通过 HSV 颜色分离、形态学处理、轮廓筛选和几何配对，实时检测并定位装甲板，发布检测结果和调试图像。
+
+**核心流程：** 图像采集 → HSV 颜色分离（红/蓝）→ 形态学处理 → 灯条轮廓筛选 → 灯条配对 → 装甲板四角计算 → EMA 时序平滑 → 结果发布
+
+### 依赖
+
+| 类型 | 依赖项 |
+|------|--------|
+| 系统 | Ubuntu 22.04, ROS2 Humble, GCC 11+, CMake 3.22+, colcon |
+| ROS2 包 | `rclcpp`, `sensor_msgs`, `std_msgs`, `cv_bridge`, `OpenCV` 4.x |
+| 第三方 | MindVision SDK `libMVSDK.so`（仅相机驱动需要，检测模块本身不依赖） |
+
+### 编译方式
+
+```bash
+cd ~/ros2_ws
+colcon build --packages-select armor_detector
+source install/setup.bash
+```
+
+如需同时编译相机驱动：`colcon build --packages-select mindvision_camera armor_detector`
+
+### 运行方式
+
+```bash
+# 一键启动（推荐）
+ros2 launch armor_detector armor.launch.py target_color:=red
+
+# 分步调试
+ros2 run mindvision_camera mindvision_camera_node                          # 终端1：相机
+ros2 run armor_detector armor_detector_node --ros-args -p target_color:=red  # 终端2：检测
+
+# 离线调试（无相机时）
+ros2 bag play <bag_file>
+```
+
+### 输入源
+
+| 项目 | 值 |
+|------|-----|
+| 输入话题 | `/image_raw`（可在 launch 中覆盖） |
+| 消息类型 | `sensor_msgs/Image` |
+| 图像格式 | BGR8, 1280 × 1024, ~15 FPS |
+| 数据来源 | 迈德威视相机驱动 `mindvision_camera` |
+
+### 输出话题或结果
+
+| 话题 | 消息类型 | 说明 |
+|------|----------|------|
+| `/armor_result` | `std_msgs/String` | 检测结果：`armor_detected color=red center=(x,y)` 或 `no_armor` |
+| `/armor_debug_image` | `sensor_msgs/Image` | 带灯条框和装甲板框标注的调试图像 |
+
+### 参数入口
+
+**配置文件：** `project/armor_detector/config/armor_params.yaml`
+
+所有检测参数（HSV 阈值、形态学核大小、灯条筛选条件、配对条件、平滑系数等）集中在此 YAML 文件中，支持：
+- launch 传参覆盖：`ros2 launch armor_detector armor.launch.py target_color:=blue`
+- 运行时动态修改：`ros2 param set /armor_detector_node red1_s_low 50`
+
+> 完整参数表见 [project/armor_detector/README.md](project/armor_detector/README.md#参数入口)
+
+### 当前已知局限
+
+- **光照适应性差**：HSV 阈值针对实验室恒定光照调优，赛场复杂光照下识别率下降
+- **仅支持单目标**：当前版本只检测一个装甲板，不支持多目标同时检测
+- **无 GPU 加速**：纯 CPU 运算，嵌入式设备上可能达到性能瓶颈
+- **无运动预测**：未集成卡尔曼滤波或光流跟踪，目标短暂丢失后无法预测位置
+- **相机连接偶发中断**：MindVision SDK 偶发 `user control fd open failed`，需重启节点
+- **未集成数字识别**：仅检测装甲板位置，未识别装甲板上的数字
+- **无动态参数重配置**：不支持 rqt_reconfigure 在线调参
+
+---
+
+**项目维护者：** tiexuejuan  
+**最后更新：** 2026-06-01

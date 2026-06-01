@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>armor_detector</name>  <!-- ✅ 必须是 armor_detector -->
+  <version>0.0.0</version>
+  <description>Armor Detector Node</description>
+  <maintainer email="tiexuejuan@todo.todo">tiexuejuan</maintainer>
+  <license>Apache-2.0</license>
+
+  <depend>rclcpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>cv_bridge</depend>
+  <depend>opencv</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
