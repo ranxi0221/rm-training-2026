@@ -21,3 +21,4 @@ Makefile
 *.tmp
 hello
 greet
+Camera/

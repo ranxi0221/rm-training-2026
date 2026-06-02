@@ -100,19 +100,19 @@ Git 与 GitHub：
 尝试方案：配置 SSH 密钥、安装 Watt Toolkit（Steam++）加速器。
 最终解决：对于必须上传的文件，改用网页分批上传；Git 命令行暂未能稳定使用，后续继续排查网络原因。
 #### 问题 7：VSCode IntelliSense 找不到头文件，显示红色波浪线
-- **原因**：编辑器默认不包含项目自定义的 `include` 目录。  
-- **解决**：按 `Ctrl+Shift+P` → `C/C++: Edit Configurations (UI)` → 在 `Include path` 中添加 `${workspaceFolder}/W1/greet_project/include`（不影响实际编译）。
+- 原因：编辑器默认不包含项目自定义的 `include` 目录。  
+- 解决：按 `Ctrl+Shift+P` → `C/C++: Edit Configurations (UI)` → 在 `Include path` 中添加 `${workspaceFolder}/W1/greet_project/include`（不影响实际编译）。
 
 #### 问题 8：CMake 编译时因 `CMakeLists.txt` 拼写错误失败
-- **现象**：`cmake_minimum_required` 误写为 `cmake_minimum_reguired` 或 `VERDION`。  
-- **解决**：仔细核对关键字，确保拼写正确。
+- 现象：`cmake_minimum_required` 误写为 `cmake_minimum_reguired` 或 `VERDION`。  
+- 解决：仔细核对关键字，确保拼写正确。
 
 #### 问题 9：VSCode 终端中 `cd` 进 `build` 目录后执行 `cmake ..` 提示找不到 `CMakeLists.txt`
-- **原因**：在错误的目录（如 `rm-training-2026/build`）执行了命令。  
-- **解决**：确保在包含 `CMakeLists.txt` 的项目根目录（如 `greet_project`）下创建 `build` 子目录，再执行 `cmake ..`。
+- 原因：在错误的目录（如 `rm-training-2026/build`）执行了命令。  
+- 解决：确保在包含 `CMakeLists.txt` 的项目根目录（如 `greet_project`）下创建 `build` 子目录，再执行 `cmake ..`。
 
 #### 问题 10：Git 分支操作中找不到 `从分支合并...` 选项
-- **解决**：使用命令面板（`Ctrl+Shift+P`）输入 `Git: 合并分支` 完成合并。
+- 解决：使用命令面板（`Ctrl+Shift+P`）输入 `Git: 合并分支` 完成合并。
 
 #### 尚未解决的问题
   
@@ -148,8 +148,8 @@ Git 与 GitHub：
 
 
 ### 概念记录
-- **Node（节点）**：一个可执行进程。例如 `/turtlesim` 节点负责显示海龟，`/teleop_turtle` 节点读取键盘输入。
-- **Topic（话题）**：节点间通信的通道。例如 `/turtle1/cmd_vel` 传输速度指令，`/turtle1/pose` 发布位置信息。
+- Node（节点）：一个可执行进程。例如 `/turtlesim` 节点负责显示海龟，`/teleop_turtle` 节点读取键盘输入。
+- Topic（话题）：节点间通信的通道。例如 `/turtle1/cmd_vel` 传输速度指令，`/turtle1/pose` 发布位置信息。
     操作命令
 - `ros2 topic list`：列出所有活跃话题。
 - `ros2 topic info <topic>`：显示话题的消息类型、发布者/订阅者数量。
@@ -158,29 +158,29 @@ Git 与 GitHub：
 - 查看话题列表：`ros2 topic list`
 - 查看 `/turtle1/cmd_vel` 信息：`ros2 topic info /turtle1/cmd_vel`
 - 监听海龟位姿：`ros2 topic echo /turtle1/pose`
-- **Workspace（工作空间）**：*Workspace（工作空间）**：一个目录，用于组织 ROS2 项目。通常包含 `src`（源码）、`build`（编译中间文件）、`install`（可执行文件）、`log`（日志）。例如创建的 `~/ros2_ws`
-- **Package（功能包）**：：ROS2 软件的最小单元，包含节点、配置文件、消息定义等。例如 `turtlesim` 是一个包，提供了小海龟仿真。
+- Workspace（工作空间）：*Workspace（工作空间）**：一个目录，用于组织 ROS2 项目。通常包含 `src`（源码）、`build`（编译中间文件）、`install`（可执行文件）、`log`（日志）。例如创建的 `~/ros2_ws`
+- Package（功能包）：：ROS2 软件的最小单元，包含节点、配置文件、消息定义等。例如 `turtlesim` 是一个包，提供了小海龟仿真。
 使用 ros2 bag record /chatter -o my_bag 录制了自己的 talker 发布的话题。
 使用 ros2 bag info my_bag 查看 bag 信息。
 使用 ros2 bag play my_bag 回放，listener 重新接收历史消息。
- **基础通信**  
+ 基础通信 
    - 创建 C++ 包 `training_pkg`，编写 `talker`（发布者）和 `listener`（订阅者）节点。  
    - 使用 `colcon build` 编译成功，两个节点能同时运行并持续打印消息。
 
-**launch 与参数**  
+launch 与参数  
    - 编写 `talker_listener.launch.py` 同时启动两个节点。  
    - 为 `talker` 添加参数 `talker_period_ms`，能分别通过命令行和 launch 文件传参（例如 `--ros-args -p talker_period_ms:=2000` 和 `ros2 launch ... talker_period_ms:=1500`）。  
    - 参数添加默认值和范围说明（100ms~5000ms，超出自动裁剪并警告）。  
    - 将参数写入单独的 YAML 文件 `config/talker_params.yaml`，由 launch 加载。
 
-**bag 调试**  
+bag 调试 
    - 使用 `ros2 bag record /chatter -o my_bag` 录制自己的 talker 发布的话题。  
    - 使用 `ros2 bag info my_bag` 查看 bag 信息。  
    - 使用 `ros2 bag play my_bag` 回放，listener 重新接收历史消息（复现实验）。
-   - **参数默认值和范围**：在 `talker.cpp` 中添加范围检查，超出阈值时打印警告并自动调整。  
-   - **YAML 参数文件**：创建 `config/talker_params.yaml`，通过 launch 加载。  
-   - **额外节点**：添加 `freq_printer` 节点，订阅 `/chatter` 话题，每秒打印接收频率。  
-   - **service 调用**：使用内置服务类型 `example_interfaces/srv/AddTwoInts`，实现加法服务端 `add_server`，客户端调用成功。
+   - 参数默认值和范围：在 `talker.cpp` 中添加范围检查，超出阈值时打印警告并自动调整。  
+   - YAML 参数文件：创建 `config/talker_params.yaml`，通过 launch 加载。  
+   - 额外节点：添加 `freq_printer` 节点，订阅 `/chatter` 话题，每秒打印接收频率。  
+   - service 调用：使用内置服务类型 `example_interfaces/srv/AddTwoInts`，实现加法服务端 `add_server`，客户端调用成功。
 
 ### 操作命令汇总
 
@@ -370,13 +370,13 @@ ros2 service call /add_two_ints example_interfaces/srv/AddTwoInts "{a: 8, b: 5}"
 
 ## 第四周：装甲板检测项目（armor_detector）
 
-> **详细文档：** [project/armor_detector/README.md](project/armor_detector/README.md) — 包含完整参数速查表、W3→W4 迁移记录、调试建议等。
+详细文档：[project/armor_detector/README.md](project/armor_detector/README.md) — 包含完整参数速查表、W3→W4 迁移记录、调试建议等。
 
 ### 项目功能
 
 基于 OpenCV + ROS2 的实时装甲板识别模块。从工业相机获取图像，通过 HSV 颜色分离、形态学处理、轮廓筛选和几何配对，实时检测并定位装甲板，发布检测结果和调试图像。
 
-**核心流程：** 图像采集 → HSV 颜色分离（红/蓝）→ 形态学处理 → 灯条轮廓筛选 → 灯条配对 → 装甲板四角计算 → EMA 时序平滑 → 结果发布
+核心流程： 图像采集 → HSV 颜色分离（红/蓝）→ 形态学处理 → 灯条轮廓筛选 → 灯条配对 → 装甲板四角计算 → EMA 时序平滑 → 结果发布
 
 ### 依赖
 
@@ -399,25 +399,31 @@ source install/setup.bash
 ### 运行方式
 
 ```bash
-# 一键启动（推荐）
+# 一键启动 — 真实相机模式（默认）
 ros2 launch armor_detector armor.launch.py target_color:=red
+
+# 一键启动 — Bag 回放模式（不需要相机）
+ros2 launch armor_detector armor.launch.py input_source:=bag bag_path:=/path/to/test.bag
 
 # 分步调试
 ros2 run mindvision_camera mindvision_camera_node                          # 终端1：相机
 ros2 run armor_detector armor_detector_node --ros-args -p target_color:=red  # 终端2：检测
-
-# 离线调试（无相机时）
-ros2 bag play <bag_file>
 ```
 
 ### 输入源
+
+通过 `input_source` 参数一键切换：
+
+| 模式 | 参数 | 需要硬件 | 适用场景 |
+|------|------|:--:|------|
+| 真实相机 | `input_source:=camera` | ✅ | 比赛/联调 |
+| Bag 回放 | `input_source:=bag` | ❌ | 离线复现、算法调试 |
 
 | 项目 | 值 |
 |------|-----|
 | 输入话题 | `/image_raw`（可在 launch 中覆盖） |
 | 消息类型 | `sensor_msgs/Image` |
 | 图像格式 | BGR8, 1280 × 1024, ~15 FPS |
-| 数据来源 | 迈德威视相机驱动 `mindvision_camera` |
 
 ### 输出话题或结果
 
@@ -428,7 +434,7 @@ ros2 bag play <bag_file>
 
 ### 参数入口
 
-**配置文件：** `project/armor_detector/config/armor_params.yaml`
+配置文件： `project/armor_detector/config/armor_params.yaml`
 
 所有检测参数（HSV 阈值、形态学核大小、灯条筛选条件、配对条件、平滑系数等）集中在此 YAML 文件中，支持：
 - launch 传参覆盖：`ros2 launch armor_detector armor.launch.py target_color:=blue`
@@ -438,15 +444,52 @@ ros2 bag play <bag_file>
 
 ### 当前已知局限
 
-- **光照适应性差**：HSV 阈值针对实验室恒定光照调优，赛场复杂光照下识别率下降
-- **仅支持单目标**：当前版本只检测一个装甲板，不支持多目标同时检测
-- **无 GPU 加速**：纯 CPU 运算，嵌入式设备上可能达到性能瓶颈
-- **无运动预测**：未集成卡尔曼滤波或光流跟踪，目标短暂丢失后无法预测位置
-- **相机连接偶发中断**：MindVision SDK 偶发 `user control fd open failed`，需重启节点
-- **未集成数字识别**：仅检测装甲板位置，未识别装甲板上的数字
-- **无动态参数重配置**：不支持 rqt_reconfigure 在线调参
+- 光照适应性差：HSV 阈值针对实验室恒定光照调优，赛场复杂光照下识别率下降
+- 仅支持单目标：当前版本只检测一个装甲板，不支持多目标同时检测
+- 无 GPU 加速：纯 CPU 运算，嵌入式设备上可能达到性能瓶颈
+- 无运动预测：未集成卡尔曼滤波或光流跟踪，目标短暂丢失后无法预测位置
+- 相机连接偶发中断：MindVision SDK 偶发 `user control fd open failed`，需重启节点
+- 未集成数字识别：仅检测装甲板位置，未识别装甲板上的数字
 
 ---
 
-**项目维护者：** tiexuejuan  
-**最后更新：** 2026-06-01
+## 第五周（6/1–6/7）：工程化整理
+
+### 本周任务
+
+- [x] 代码结构审查：确认检测逻辑与节点逻辑分离
+- [x] launch 完善：新增 `input_source` 参数支持 camera/bag 一键切换
+- [x] 参数补全：YAML 配置文件已覆盖全部 30+ 算法参数，新增 launch 层参数
+- [x] 保留固定 bag 用于复现：`project/armor_detector/bags/armor_test`（本地，不入 git）
+- [x] 运行截图：`project/assets/armor_debug_screenshot.png`（blue armor detected）
+
+### 本周完成内容
+
+#### 代码结构确认
+
+W4 代码已满足工程化要求，检测逻辑 `ArmorDetector` 类（输入 `cv::Mat` → 输出 `ArmorPlate`）与 ROS2 节点完全解耦。同一套检测逻辑可被离线图片、视频、bag 和真实相机复用。
+
+#### launch 完善
+
+```
+W4: launch 强制启动相机 → 无相机报错
+W5: 新增 input_source 参数 → camera 模式启动相机，bag 模式自动播放 bag
+```
+
+新增 launch 参数：`input_source`（camera/bag）、`bag_path`、`enable_debug`
+
+#### 参数补全
+
+W4 YAML 已包含全部算法参数（预处理、红/蓝 HSV、形态学、灯条筛选、配对、平滑），W5 补全了 launch 层参数。
+
+#### 相机调试记录
+
+MindVision SDK 报 `user control fd open failed` 但不影响图像采集（系 SDK 内部辅助功能报错，主图像流正常）。排查过程中发现：
+- 需增大 USB 缓冲区：`echo 2000 > /sys/module/usbcore/parameters/usbfs_memory_mb`
+- 需先加载 ROS2 环境再启动
+- 相机枚举和初始化正常：`MV-SUA133GC sn=041062620083 port=USB3.0`
+
+#### Bag 复现
+
+本地 bag 路径：`project/armor_detector/bags/armor_test`（3 秒，含 /image_raw + /armor_result + /armor_debug_image）
+

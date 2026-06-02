@@ -45,7 +45,17 @@ private:
         return false;
     }
 
+    // ★ 用 system 写文件，排除 fopen/ROS2 log 拦截问题
+    char cmd[512];
+    snprintf(cmd, sizeof(cmd),
+        "echo 'cnt=%d dev0: name=%s sn=%s port=%s' > /tmp/cam_debug.txt",
+        cnt, devs[0].acProductName, devs[0].acSn, devs[0].acPortType);
+    system(cmd);
+
     int ret = CameraInit(&devs[0], -1, -1, &hdev_);
+    snprintf(cmd, sizeof(cmd),
+        "echo 'ret=%d' >> /tmp/cam_debug.txt", ret);
+    system(cmd);
     if (ret != CAMERA_STATUS_SUCCESS) {
         RCLCPP_ERROR(this->get_logger(), "CameraInit err=%d", ret);
         return false;
@@ -78,7 +88,20 @@ private:
         tSdkFrameHead hdr;
         unsigned char* pRaw = nullptr;
         int r = CameraGetImageBuffer(hdev_, &hdr, &pRaw, 1000);
-        if (r != CAMERA_STATUS_SUCCESS || !pRaw) return;
+        static int grab_count = 0;
+        static int err_count = 0;
+        grab_count++;
+        if (r != CAMERA_STATUS_SUCCESS || !pRaw) {
+            err_count++;
+            if (err_count <= 5) {
+                char cmd[128];
+                snprintf(cmd, sizeof(cmd),
+                    "echo 'grab#%d err=%d pRaw=%p' >> /tmp/cam_debug.txt",
+                    grab_count, r, (void*)pRaw);
+                system(cmd);
+            }
+            return;
+        }
 
         CameraImageProcess(hdev_, pRaw, rgbBuf_, &hdr);
 

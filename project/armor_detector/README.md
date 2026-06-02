@@ -56,8 +56,30 @@ source install/setup.bash
 ## 运行方式
 
 ### 一键启动（推荐）
+
 ```bash
+# 真实相机模式（默认）
 ros2 launch armor_detector armor.launch.py target_color:=red
+
+# Bag 回放模式（不需要相机，bag 本地路径：bags/armor_test）
+ros2 launch armor_detector armor.launch.py input_source:=bag bag_path:=bags/armor_test
+```
+
+### 输入源切换
+
+通过 `input_source` 参数一键切换：
+
+| 模式 | 命令 | 说明 |
+|------|------|------|
+| **真实相机** | `input_source:=camera`（默认） | 启动 `mindvision_camera` 驱动节点 + 检测节点 |
+| **Bag 回放** | `input_source:=bag` | 仅启动检测节点，自动循环播放指定 bag 文件 |
+
+```bash
+# 示例1：用真实相机检测红色装甲板
+ros2 launch armor_detector armor.launch.py input_source:=camera target_color:=red
+
+# 示例2：用 bag 复现蓝色装甲板检测
+ros2 launch armor_detector armor.launch.py input_source:=bag bag_path:=~/bags/armor_test
 ```
 
 ### 分步启动（调试用）
@@ -71,14 +93,27 @@ ros2 run armor_detector armor_detector_node --ros-args -p target_color:=red
 
 ### 无相机时的离线调试
 ```bash
-# 播放 bag 包模拟输入
-ros2 bag play <bag_file>
+# 方式1：用 launch 的 bag 模式
+ros2 launch armor_detector armor.launch.py input_source:=bag bag_path:=<bag_file>
 
-# 用本地图片发布单帧
+# 方式2：手动播放 bag + 启动检测节点
+ros2 bag play <bag_file> --loop          # 终端1
+ros2 run armor_detector armor_detector_node --ros-args -p target_color:=red  # 终端2
+
+# 方式3：用本地图片测试（发布单帧）
 ros2 run image_publisher image_publisher_node <image_file>
 ```
 
 ## 输入源
+
+项目支持两种输入源，通过 launch 参数 `input_source` 一键切换：
+
+| 模式 | 输入来源 | 需要硬件 | 适用场景 |
+|------|----------|:--:|------|
+| **camera** | 迈德威视工业相机（USB3.0） | ✅ | 真实比赛/联调 |
+| **bag** | ros2 bag 文件回放 | ❌ | 离线复现、算法调试、无相机环境 |
+
+### 输入规格
 
 | 项目 | 值 |
 |------|-----|
@@ -87,7 +122,16 @@ ros2 run image_publisher image_publisher_node <image_file>
 | **图像格式** | BGR8（8 位三通道彩色） |
 | **分辨率** | 1280 × 1024 |
 | **帧率** | ~15 FPS（取决于相机曝光设置） |
-| **数据来源** | 迈德威视相机驱动 `mindvision_camera` 发布 |
+
+### 切换方法
+
+```bash
+# 切换到真实相机
+ros2 launch armor_detector armor.launch.py input_source:=camera
+
+# 切换到 bag 回放（需提前录好 bag 文件）
+ros2 launch armor_detector armor.launch.py input_source:=bag bag_path:=/path/to/bag_file
+```
 
 > 订阅使用 **SensorDataQoS**，确保图像传输可靠性。若使用其他相机，只需将话题对齐到 `/image_raw`（BGR8 格式）即可。
 
@@ -109,6 +153,20 @@ no_armor
 ```
 
 ## 参数入口
+
+参数分两层：
+
+### Launch 层参数（launch 传参）
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `input_source` | `camera` | 输入源：`camera`（真实相机）或 `bag`（bag 回放） |
+| `target_color` | `red` | 目标颜色：`red` / `blue` / `both` |
+| `image_topic` | `/image_raw` | 订阅的图像话题 |
+| `bag_path` | 空 | bag 文件路径（`input_source:=bag` 时需指定） |
+| `enable_debug` | `true` | 是否发布调试图像 |
+
+### 算法层参数（YAML 配置文件）
 
 **主配置文件：** [`config/armor_params.yaml`](config/armor_params.yaml)
 
@@ -193,7 +251,64 @@ ros2 param list /armor_detector_node
 
 </details>
 
+## 附录：W4 → W5 工程化整理记录
+
+<details>
+<summary>W5 工程化整理内容（点击展开）</summary>
+
+### 代码结构确认
+
+W4 的代码结构已经满足要求，W5 无需重构：
+
+| 文件 | 职责 | 依赖 |
+|------|------|------|
+| `armor_detector.hpp` | 数据结构 + `ArmorDetector` 类声明 | OpenCV |
+| `armor_detector.cpp` | 检测算法实现（预处理/灯条提取/配对/平滑/绘制） | OpenCV |
+| `armor_detector_node.cpp` | ROS2 节点（订阅→调用检测→发布结果） | OpenCV + ROS2 |
+
+> 检测逻辑输入 `cv::Mat`，输出 `ArmorPlate`，与 ROS2 完全解耦。同一套检测逻辑可被离线图片、视频、bag 和真实相机复用。
+
+### 参数补全
+
+W4 的 `armor_params.yaml` 已包含全部 30+ 参数，覆盖：
+- 预处理：`brightness_alpha`, `enable_clahe`, `clahe_clip`, `clahe_tile`
+- 红色 HSV：`red1_*`, `red2_*`（两段式，共 12 个值）
+- 蓝色 HSV：`blue_*`（共 6 个值）
+- 形态学：`morph_kernel_size`, `enable_morph_open`, `enable_morph_close`
+- 灯条筛选：`light_min_area`, `light_max_area`, `light_max_ratio`
+- 配对：`pair_max_dy`, `pair_min_dx`, `pair_max_dx`
+- 平滑：`smooth_alpha`
+
+W5 新增 launch 层参数：`input_source`, `bag_path`, `enable_debug`
+
+### launch 完善
+
+```
+W4: launch 强制启动相机 → 无相机时报错
+W5: 新增 input_source 参数 → camera 模式启动相机，bag 模式自动播放 bag
+```
+
+### 目录结构
+
+```
+armor_detector/
+├── CMakeLists.txt          # 编译规则
+├── package.xml             # 包声明
+├── config/
+│   └── armor_params.yaml   # ★ 所有可调参数（30+ 项）
+├── launch/
+│   └── armor.launch.py     # ★ 一键启动（支持 camera/bag 切换）
+├── include/armor_detector/
+│   └── armor_detector.hpp  # 数据结构 + 检测器类声明
+├── src/
+│   ├── armor_detector.cpp       # 检测算法库（纯 OpenCV，不依赖 ROS）
+│   └── armor_detector_node.cpp  # ROS2 节点（订阅/发布/参数管理）
+└── README.md               # 本文档
+```
+
+</details>
+
 ---
 
 **维护者：** tiexuejuan  
-**最后更新：** 2026-06-01
+**最后更新：** 2026-06-02
