@@ -12,6 +12,30 @@
 - EMA 指数平滑（减少帧间抖动）
 - 调试图像发布（灯条框 + 装甲板框叠加）
 
+## 架构设计：检测逻辑 vs 节点逻辑
+
+```
+┌─────────────────────────────────┐
+│  armor_detector_node.cpp        │  ← ROS2 节点（胶水层）
+│  职责：订阅图像 → cv_bridge     │
+│        读取 YAML 参数           │
+│        调用 detector_.detect()  │
+│        发布 /armor_result       │
+│        发布 /armor_debug_image  │
+└──────────┬──────────────────────┘
+           │ cv::Mat → ArmorPlate
+┌──────────▼──────────────────────┐
+│  armor_detector.cpp             │  ← 检测算法（纯 OpenCV）
+│  职责：preprocess() 预处理      │     不依赖 ROS2
+│        extractLightBars() 灯条  │
+│        matchArmorPlate() 配对   │
+│        drawDebug() 绘制         │
+│        EMA 时序平滑             │
+└─────────────────────────────────┘
+```
+
+> **关键设计原则：** 检测逻辑输入 `cv::Mat`，输出 `ArmorPlate`，与 ROS2 完全解耦。同一套代码可被**离线图片、视频、bag、真实相机**四种输入源复用，无需修改。
+
 ## 依赖
 
 ### 系统环境
