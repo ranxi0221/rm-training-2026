@@ -6,16 +6,14 @@
 namespace armor_detector
 {
 
-// ============================================================================
 // 构造
-// ============================================================================
 ArmorDetector::ArmorDetector()
 {
-    last_armor_.detected = false;
+    last_armor_.detected = false;//初始化，还没有检测到装甲板
 }
 
 ArmorDetector::ArmorDetector(const DetectorParams & params)
-    : params_(params)
+    : params_(params) //用传入的参数初始化
 {
     last_armor_.detected = false;
 }
@@ -30,9 +28,7 @@ const DetectorParams & ArmorDetector::getParams() const
     return params_;
 }
 
-// ============================================================================
 // 预处理：降低亮度 + CLAHE 增强对比度
-// ============================================================================
 cv::Mat ArmorDetector::preprocess(const cv::Mat & bgr)
 {
     // 1. 降低亮度
@@ -62,9 +58,7 @@ cv::Mat ArmorDetector::preprocess(const cv::Mat & bgr)
     return result;
 }
 
-// ============================================================================
 // 提取灯条
-// ============================================================================
 std::vector<LightBar> ArmorDetector::extractLightBars(
     const cv::Mat & /*bgr*/,
     const cv::Mat & hsv,
@@ -154,12 +148,10 @@ std::vector<LightBar> ArmorDetector::extractLightBars(
     return lights;
 }
 
-// ============================================================================
 // 配对装甲板 — 精准角点法
 //
 // 从每个灯条的 4 个旋转矩形角点中提取左/右边缘，直接用灯条角点做装甲板四角。
 // 黄色框精准贴到灯条端点，不会外扩。
-// ============================================================================
 ArmorPlate ArmorDetector::matchArmorPlate(const std::vector<LightBar> & light_bars)
 {
     ArmorPlate result;
@@ -232,10 +224,8 @@ ArmorPlate ArmorDetector::matchArmorPlate(const std::vector<LightBar> & light_ba
 
     return result;
 }
-
-// ============================================================================
 // 核心检测接口
-// ============================================================================
+
 ArmorPlate ArmorDetector::detect(const cv::Mat & bgr, const std::string & target_color)
 {
     // 1. 预处理
@@ -281,9 +271,9 @@ ArmorPlate ArmorDetector::detect(const cv::Mat & bgr, const std::string & target
     return armor;
 }
 
-// ============================================================================
+
 // 调试绘制
-// ============================================================================
+
 cv::Mat ArmorDetector::drawDebug(const cv::Mat & bgr,
                                   const std::vector<LightBar> & light_bars,
                                   const ArmorPlate & armor) const

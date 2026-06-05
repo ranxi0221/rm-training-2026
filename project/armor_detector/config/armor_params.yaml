@@ -51,4 +51,4 @@ armor_detector_node:
     pair_max_dx: 1200.0
 
     # ---- 时序平滑 ----
-    smooth_alpha: 0.7                   # 提高平滑，减少红色黄框掉落
+    smooth_alpha: 0.3                   # 降低平滑，减少黄框延迟（0.7太卡）

@@ -26,9 +26,8 @@ def generate_launch_description():
 
     return LaunchDescription([
 
-        # ====================================================================
         # 声明 launch 参数
-        # ====================================================================
+    
         DeclareLaunchArgument('input_source', default_value='camera',
             description="输入源: 'camera'（真实相机）或 'bag'（ros2 bag 回放）"),
         DeclareLaunchArgument('target_color', default_value='red',
@@ -40,9 +39,7 @@ def generate_launch_description():
         DeclareLaunchArgument('enable_debug', default_value='true',
             description='是否发布调试图像'),
 
-        # ====================================================================
         # 相机模式：启动迈德威视相机节点
-        # ====================================================================
         Node(
             condition=IfCondition(is_camera),
             package='mindvision_camera',
@@ -51,9 +48,7 @@ def generate_launch_description():
             output='screen',
         ),
 
-        # ====================================================================
         # Bag 模式：自动播放 bag 文件（如果指定了 bag_path）
-        # ====================================================================
         ExecuteProcess(
             condition=IfCondition(is_bag),
             cmd=['ros2', 'bag', 'play', bag_path, '--loop'],
@@ -61,17 +56,16 @@ def generate_launch_description():
             # 如果 bag_path 为空，仍然启动但会报错提示用户
         ),
 
-        # ====================================================================
         # Bag 模式的提示信息
-        # ====================================================================
+      
         LogInfo(
             condition=IfCondition(is_bag),
             msg="[armor_detector] Bag 模式：请确保 bag 文件存在且包含 /image_raw 话题",
         ),
 
-        # ====================================================================
+        
         # 装甲板检测节点（两种模式都启动）
-        # ====================================================================
+        
         Node(
             package='armor_detector',
             executable='armor_detector_node',

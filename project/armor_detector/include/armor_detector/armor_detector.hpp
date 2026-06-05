@@ -1,25 +1,21 @@
-#pragma once
-
+#pragma once//防止头文件被重复
 #include <opencv2/opencv.hpp>
-#include <vector>
-#include <string>
+#include <vector>//容器
+#include <string>//字符串
 
 namespace armor_detector
 {
 
-// ============================================================================
 // 灯条检测结果
-// ============================================================================
 struct LightBar
 {
-    cv::RotatedRect rect;       // 旋转矩形
+    cv::RotatedRect rect;       // 旋转矩形包含矩形中型坐标，宽和高，以及角度
     std::string color;           // "red" 或 "blue"
     float confidence = 1.0f;    // 置信度（保留扩展）
 };
 
-// ============================================================================
 // 装甲板检测结果
-// ============================================================================
+
 struct ArmorPlate
 {
     bool detected = false;
@@ -28,9 +24,7 @@ struct ArmorPlate
     std::string color;           // "red" 或 "blue"
 };
 
-// ============================================================================
 // 可调参数
-// ============================================================================
 struct DetectorParams
 {
     // ---- 预处理 ----
@@ -72,9 +66,7 @@ struct DetectorParams
     float smooth_alpha = 0.7f;        // EMA 平滑系数（越大越平滑）
 };
 
-// ============================================================================
 // 装甲板检测器
-// ============================================================================
 class ArmorDetector
 {
 public:
@@ -111,7 +103,7 @@ private:
     ArmorPlate matchArmorPlate(const std::vector<LightBar> & light_bars);
 
     DetectorParams params_;
-    ArmorPlate last_armor_;              // 用于平滑
+    ArmorPlate last_armor_;              // 用于平滑,检测上一个画面
     std::vector<LightBar> last_light_bars_;  // 最近一帧灯条（供调试绘制）
     cv::Mat debug_mask_;                 // 保存 mask 供调试
 };
