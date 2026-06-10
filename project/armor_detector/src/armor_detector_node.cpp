@@ -72,6 +72,9 @@ public:
         // 时序平滑
         this->declare_parameter<double>("smooth_alpha", 0.7);
 
+        // 自适应亮度
+        this->declare_parameter<bool>("enable_adaptive_brightness", true);
+
         // 调试
         this->declare_parameter<bool>("enable_debug", true);
 
@@ -88,6 +91,7 @@ public:
         // ---- 创建发布 ----
         pub_result_ = this->create_publisher<std_msgs::msg::String>("/armor_result", 10);
         pub_debug_ = this->create_publisher<sensor_msgs::msg::Image>("/armor_debug_image", 10);
+        pub_mask_ = this->create_publisher<sensor_msgs::msg::Image>("/armor_mask", 10);
 
         RCLCPP_INFO(this->get_logger(),
             "ArmorDetectorNode started | image: %s | target: %s",
@@ -142,6 +146,7 @@ private:
         p.pair_max_dx = this->get_parameter("pair_max_dx").as_double();
 
         p.smooth_alpha = this->get_parameter("smooth_alpha").as_double();
+        p.enable_adaptive_brightness = this->get_parameter("enable_adaptive_brightness").as_bool();
 
         detector_.setParams(p);
     }
@@ -166,19 +171,23 @@ private:
 
         // 2. 调用检测器
         std::string target = this->get_parameter("target_color").as_string();
-        auto armor = detector_.detect(bgr, target);
+        auto armors = detector_.detect(bgr, target);
 
-        // 3. 发布结果
-        std_msgs::msg::String res;
-        if (armor.detected) {
-            res.data = "armor_detected color=" + armor.color +
-                       " center=(" +
-                       std::to_string(static_cast<int>(armor.center.x)) + "," +
-                       std::to_string(static_cast<int>(armor.center.y)) + ")";
-        } else {
+        // 3. 发布结果（W6: 支持多装甲板）
+        if (armors.empty()) {
+            std_msgs::msg::String res;
             res.data = "no_armor";
+            pub_result_->publish(res);
+        } else {
+            for (const auto & armor : armors) {
+                std_msgs::msg::String res;
+                res.data = "armor_detected color=" + armor.color +
+                           " center=(" +
+                           std::to_string(static_cast<int>(armor.center.x)) + "," +
+                           std::to_string(static_cast<int>(armor.center.y)) + ")";
+                pub_result_->publish(res);
+            }
         }
-        pub_result_->publish(res);
 
         // 4. 调试图像
         if (this->get_parameter("enable_debug").as_bool()) {
@@ -196,22 +205,29 @@ private:
             //
             // 为了最小化修改，这里让 detect() 返回 armor，但同时把 light_bars
             // 存入 detector_ 成员。drawDebug 从成员读取。
-            auto dbg = detector_.drawDebug(bgr, detector_.getLastLightBars(), armor);
+            auto dbg = detector_.drawDebug(bgr, detector_.getLastLightBars(), armors);
             pub_debug_->publish(
                 *cv_bridge::CvImage(msg->header, "bgr8", dbg).toImageMsg());
+
+            // 发布 HSV mask（黑白图，白色=被HSV抓到的像素）
+            auto mask = detector_.getLastMask();
+            if (!mask.empty()) {
+                pub_mask_->publish(
+                    *cv_bridge::CvImage(msg->header, "mono8", mask).toImageMsg());
+            }
         }
 
         // 5. 日志（限流）
         RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
-            "Lights: %zu | Armor: %s",
-            detector_.getLastLightBars().size(),
-            armor.detected ? (armor.color + " detected").c_str() : "none");
+            "Lights: %zu | Armors: %zu",
+            detector_.getLastLightBars().size(), armors.size());
     }
 
     // ---- 成员变量 ----
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr sub_;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pub_result_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_debug_;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_mask_;
 
     armor_detector::ArmorDetector detector_;
 };

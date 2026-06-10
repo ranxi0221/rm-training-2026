@@ -9,13 +9,11 @@ namespace armor_detector
 // 构造
 ArmorDetector::ArmorDetector()
 {
-    last_armor_.detected = false;//初始化，还没有检测到装甲板
 }
 
 ArmorDetector::ArmorDetector(const DetectorParams & params)
-    : params_(params) //用传入的参数初始化
+    : params_(params)
 {
-    last_armor_.detected = false;
 }
 
 void ArmorDetector::setParams(const DetectorParams & params)
@@ -152,81 +150,85 @@ std::vector<LightBar> ArmorDetector::extractLightBars(
 //
 // 从每个灯条的 4 个旋转矩形角点中提取左/右边缘，直接用灯条角点做装甲板四角。
 // 黄色框精准贴到灯条端点，不会外扩。
-ArmorPlate ArmorDetector::matchArmorPlate(const std::vector<LightBar> & light_bars)
+std::vector<ArmorPlate> ArmorDetector::matchArmorPlate(const std::vector<LightBar> & light_bars)
 {
-    ArmorPlate result;
-    result.detected = false;
+    std::vector<ArmorPlate> results;
 
     if (light_bars.size() < 2) {
-        return result;
+        return results;
     }
 
-    // 按 X 坐标排序（左 → 右）
-    std::vector<LightBar> sorted = light_bars;
-    std::sort(sorted.begin(), sorted.end(),
-        [](const LightBar & a, const LightBar & b) {
-            return a.rect.center.x < b.rect.center.x;
-        });
-
-    // 遍历相邻灯条对
-    for (size_t i = 0; i < sorted.size() - 1; ++i) {
-        const auto & left = sorted[i];
-        const auto & right = sorted[i + 1];
-
-        // 必须是同色
-        if (left.color != right.color) continue;
-
-        float dx = std::fabs(left.rect.center.x - right.rect.center.x);
-        float dy = std::fabs(left.rect.center.y - right.rect.center.y);
-
-        if (dy > params_.pair_max_dy) continue;
-        if (dx < params_.pair_min_dx || dx > params_.pair_max_dx) continue;
-
-        // ---- 提取每个灯条的左/右边缘角点 ----
-        auto extractEdges = [](const cv::RotatedRect & rect,
-                                cv::Point2f & top, cv::Point2f & bot) {
-            cv::Point2f pts[4];
-            rect.points(pts);
-
-            // 按 X 排序：pts[0],pts[1] = 左边两点, pts[2],pts[3] = 右边两点
-            std::sort(pts, pts + 4,
-                [](const cv::Point2f & a, const cv::Point2f & b) { return a.x < b.x; });
-
-            // 左边两点按 Y 分上下
-            if (pts[0].y > pts[1].y) std::swap(pts[0], pts[1]);
-            top = pts[0];   // 左上
-            bot = pts[1];   // 左下
-        };
-
-        cv::Point2f l_top, l_bot, r_top, r_bot;
-        extractEdges(left.rect, l_top, l_bot);
-        extractEdges(right.rect, r_top, r_bot);
-
-        // 装甲板四角 = 左灯条左边缘 + 右灯条右边缘
-        cv::Point2f armor_pts[4];
-        armor_pts[0] = l_top;   // 左上
-        armor_pts[1] = l_bot;   // 左下
-        armor_pts[2] = r_bot;   // 右下
-        armor_pts[3] = r_top;   // 右上
-
-        // 计算中心
-        result.center = cv::Point2f(0, 0);
-        for (int j = 0; j < 4; ++j) {
-            result.corners[j] = armor_pts[j];
-            result.center += armor_pts[j];
+    // ---- W6修复：按颜色分组，各自独立配对 ----
+    // 避免红蓝混排导致同色灯条被不同色灯条隔开而漏配
+    auto getCorners = [](const cv::RotatedRect & rect, bool takeMinX,
+                          cv::Point2f & top, cv::Point2f & bot) {
+        cv::Point2f pts[4];
+        rect.points(pts);
+        std::sort(pts, pts + 4,
+            [](const cv::Point2f & a, const cv::Point2f & b) { return a.y < b.y; });
+        if (takeMinX) {
+            top = (pts[0].x < pts[1].x) ? pts[0] : pts[1];
+            bot = (pts[2].x < pts[3].x) ? pts[2] : pts[3];
+        } else {
+            top = (pts[0].x > pts[1].x) ? pts[0] : pts[1];
+            bot = (pts[2].x > pts[3].x) ? pts[2] : pts[3];
         }
-        result.center *= 0.25f;
+    };
 
-        result.detected = true;
-        result.color = left.color;
-        return result;
-    }
+    // W6: 收集同色所有有效配对（不重叠），支持多装甲板
+    auto collectPairs = [&](const std::string & color) -> std::vector<ArmorPlate> {
+        std::vector<ArmorPlate> res;
+        std::vector<LightBar> same_color;
+        for (const auto & lb : light_bars)
+            if (lb.color == color) same_color.push_back(lb);
+        if (same_color.size() < 2) return res;
 
-    return result;
+        std::sort(same_color.begin(), same_color.end(),
+            [](const LightBar & a, const LightBar & b) {
+                return a.rect.center.x < b.rect.center.x; });
+
+        std::vector<bool> used(same_color.size(), false);
+
+        for (size_t i = 0; i < same_color.size(); ++i) {
+            if (used[i]) continue;
+            for (size_t j = i + 1; j < same_color.size(); ++j) {
+                if (used[j]) continue;
+                float dx = std::fabs(same_color[i].rect.center.x - same_color[j].rect.center.x);
+                float dy = std::fabs(same_color[i].rect.center.y - same_color[j].rect.center.y);
+                if (dy > params_.pair_max_dy) continue;
+                if (dx < params_.pair_min_dx || dx > params_.pair_max_dx) continue;
+
+                ArmorPlate armor;
+                cv::Point2f l_top, l_bot, r_top, r_bot;
+                getCorners(same_color[i].rect, true, l_top, l_bot);
+                getCorners(same_color[j].rect, false, r_top, r_bot);
+                armor.corners[0] = l_top;
+                armor.corners[1] = l_bot;
+                armor.corners[2] = r_bot;
+                armor.corners[3] = r_top;
+                armor.center = (armor.corners[0] + armor.corners[1]
+                              + armor.corners[2] + armor.corners[3]) * 0.25f;
+                armor.detected = true;
+                armor.color = color;
+                res.push_back(armor);
+                used[i] = used[j] = true;
+                break;
+            }
+        }
+        return res;
+    };
+
+    // 收集所有颜色的装甲板
+    auto reds = collectPairs("red");
+    auto blues = collectPairs("blue");
+    results.insert(results.end(), reds.begin(), reds.end());
+    results.insert(results.end(), blues.begin(), blues.end());
+    return results;
 }
 // 核心检测接口
 
-ArmorPlate ArmorDetector::detect(const cv::Mat & bgr, const std::string & target_color)
+std::vector<ArmorPlate> ArmorDetector::detect(const cv::Mat & bgr,
+                                              const std::string & target_color)
 {
     // 1. 预处理
     cv::Mat processed = preprocess(bgr);
@@ -234,6 +236,21 @@ ArmorPlate ArmorDetector::detect(const cv::Mat & bgr, const std::string & target
     // 2. 转 HSV
     cv::Mat hsv;
     cv::cvtColor(processed, hsv, cv::COLOR_BGR2HSV);
+
+    // 2.5 亮环境模式：手动开启后提高 S/V 门槛过滤误检（默认关闭）
+    int saved_red1_sl = params_.red1_s_low, saved_red1_sh = params_.red1_s_high;
+    int saved_red1_vl = params_.red1_v_low;
+    int saved_red2_sl = params_.red2_s_low, saved_red2_sh = params_.red2_s_high;
+    int saved_red2_vl = params_.red2_v_low;
+    int saved_blue_sl  = params_.blue_s_low,  saved_blue_sh  = params_.blue_s_high;
+    int saved_blue_vl  = params_.blue_v_low;
+
+    if (params_.enable_adaptive_brightness) {
+        // 亮环境：进一步降低S(接收过曝中心)，大幅提高V(过滤背景)
+        params_.red1_s_low = 10;  params_.red1_v_low = 150;
+        params_.red2_s_low = 10;  params_.red2_v_low = 150;
+        params_.blue_s_low  = 20; params_.blue_v_low  = 180;
+    }
 
     // 3. 提取灯条
     std::vector<LightBar> all_lights;
@@ -247,28 +264,39 @@ ArmorPlate ArmorDetector::detect(const cv::Mat & bgr, const std::string & target
         all_lights.insert(all_lights.end(), blue_lights.begin(), blue_lights.end());
     }
 
-    // 4. 配对装甲板
-    ArmorPlate armor = matchArmorPlate(all_lights);
+    // 恢复原始参数
+    params_.red1_s_low = saved_red1_sl; params_.red1_s_high = saved_red1_sh;
+    params_.red1_v_low = saved_red1_vl;
+    params_.red2_s_low = saved_red2_sl; params_.red2_s_high = saved_red2_sh;
+    params_.red2_v_low = saved_red2_vl;
+    params_.blue_s_low  = saved_blue_sl;  params_.blue_s_high  = saved_blue_sh;
+    params_.blue_v_low  = saved_blue_vl;
 
-    // 5. 保存灯条列表供外部调试绘制
+    // 4. 配对装甲板
+    auto armors = matchArmorPlate(all_lights);
     last_light_bars_ = all_lights;
 
-    // 6. 时序平滑（EMA）
-    if (armor.detected && last_armor_.detected && armor.color == last_armor_.color) {
+    // 5. 时序平滑（EMA）—— 按颜色匹配上一帧装甲板
+    if (!armors.empty() && !last_armors_.empty()) {
         float a = params_.smooth_alpha;
         float b = 1.0f - a;
-
-        armor.center.x = a * last_armor_.center.x + b * armor.center.x;
-        armor.center.y = a * last_armor_.center.y + b * armor.center.y;
-
-        for (int i = 0; i < 4; ++i) {
-            armor.corners[i].x = a * last_armor_.corners[i].x + b * armor.corners[i].x;
-            armor.corners[i].y = a * last_armor_.corners[i].y + b * armor.corners[i].y;
+        for (auto & cur : armors) {
+            for (const auto & prev : last_armors_) {
+                if (cur.color == prev.color && prev.detected) {
+                    cur.center.x = a * prev.center.x + b * cur.center.x;
+                    cur.center.y = a * prev.center.y + b * cur.center.y;
+                    for (int i = 0; i < 4; ++i) {
+                        cur.corners[i].x = a * prev.corners[i].x + b * cur.corners[i].x;
+                        cur.corners[i].y = a * prev.corners[i].y + b * cur.corners[i].y;
+                    }
+                    break;
+                }
+            }
         }
     }
 
-    last_armor_ = armor;
-    return armor;
+    last_armors_ = armors;
+    return armors;
 }
 
 
@@ -276,7 +304,7 @@ ArmorPlate ArmorDetector::detect(const cv::Mat & bgr, const std::string & target
 
 cv::Mat ArmorDetector::drawDebug(const cv::Mat & bgr,
                                   const std::vector<LightBar> & light_bars,
-                                  const ArmorPlate & armor) const
+                                  const std::vector<ArmorPlate> & armors) const
 {
     cv::Mat dbg = bgr.clone();
 
@@ -301,36 +329,18 @@ cv::Mat ArmorDetector::drawDebug(const cv::Mat & bgr,
             cv::FONT_HERSHEY_SIMPLEX, 0.4, color, 1);
     }
 
-    // ---- 绘制装甲板 ----
-    if (armor.detected) {
-        // 装甲板用亮黄色（BGR: 青+绿 = 黄色），与红/蓝灯条区分
+    // ---- 绘制装甲板（W6: 支持多个） ----
+    for (const auto & armor : armors) {
+        if (!armor.detected) continue;
         cv::Scalar armor_color(0, 255, 255);  // BGR 黄色
 
-        // 四条边
         for (int i = 0; i < 4; ++i) {
-            cv::line(dbg,
-                armor.corners[i],
-                armor.corners[(i + 1) % 4],
-                armor_color, 3);
+            cv::line(dbg, armor.corners[i], armor.corners[(i + 1) % 4], armor_color, 3);
         }
-
-        // 对角线（辅助观察角点是否正确）
-        cv::line(dbg, armor.corners[0], armor.corners[2],
-            cv::Scalar(0, 255, 255), 1, cv::LINE_AA);
-        cv::line(dbg, armor.corners[1], armor.corners[3],
-            cv::Scalar(0, 255, 255), 1, cv::LINE_AA);
-
-        // 中心圆
+        cv::line(dbg, armor.corners[0], armor.corners[2], cv::Scalar(0, 255, 255), 1, cv::LINE_AA);
+        cv::line(dbg, armor.corners[1], armor.corners[3], cv::Scalar(0, 255, 255), 1, cv::LINE_AA);
         cv::circle(dbg, armor.center, 8, cv::Scalar(0, 255, 255), -1);
 
-        // 角点编号标注
-        for (int i = 0; i < 4; ++i) {
-            cv::putText(dbg, std::to_string(i),
-                armor.corners[i] + cv::Point2f(3, -3),
-                cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(255, 255, 255), 1);
-        }
-
-        // 颜色标签
         cv::putText(dbg, "ARMOR:" + armor.color,
             armor.center + cv::Point2f(10, 0),
             cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 255), 2);

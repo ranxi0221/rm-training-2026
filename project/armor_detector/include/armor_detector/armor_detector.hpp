@@ -64,6 +64,9 @@ struct DetectorParams
 
     // ---- 时序平滑 ----
     float smooth_alpha = 0.7f;        // EMA 平滑系数（越大越平滑）
+
+    // ---- 自适应亮度 ----
+    bool enable_adaptive_brightness = true;  // 是否自动根据画面亮度调整HSV阈值
 };
 
 // 装甲板检测器
@@ -77,18 +80,21 @@ public:
     void setParams(const DetectorParams & params);
     const DetectorParams & getParams() const;
 
-    // 核心检测：输入 BGR 图像 + 目标颜色，返回装甲板
-    // target_color: "red" / "blue" / "both"
-    // 当 target_color == "both" 时优先返回置信度更高的
-    ArmorPlate detect(const cv::Mat & bgr, const std::string & target_color = "red");
+    // 核心检测：输入 BGR 图像 + 目标颜色，返回装甲板列表
+    // W6: 改为返回列表，支持同画面多装甲板
+    std::vector<ArmorPlate> detect(const cv::Mat & bgr,
+                                    const std::string & target_color = "red");
 
     // 获取最近一帧检测到的灯条列表（供调试绘制用）
     const std::vector<LightBar> & getLastLightBars() const { return last_light_bars_; }
 
-    // 调试绘制：在原图上绘制灯条和装甲板
+    // 获取最近一帧的 HSV mask（供调试查看）
+    const cv::Mat & getLastMask() const { return debug_mask_; }
+
+    // 调试绘制：在原图上绘制灯条和装甲板（W6: 支持多个装甲板）
     cv::Mat drawDebug(const cv::Mat & bgr,
                       const std::vector<LightBar> & light_bars,
-                      const ArmorPlate & armor) const;
+                      const std::vector<ArmorPlate> & armors) const;
 
 private:
     // 预处理：降亮度 + CLAHE
@@ -99,13 +105,13 @@ private:
                                            const cv::Mat & hsv,
                                            const std::string & color);
 
-    // 配对装甲板 — 凸包法
-    ArmorPlate matchArmorPlate(const std::vector<LightBar> & light_bars);
+    // 配对装甲板 — 返回所有检测到的装甲板
+    std::vector<ArmorPlate> matchArmorPlate(const std::vector<LightBar> & light_bars);
 
     DetectorParams params_;
-    ArmorPlate last_armor_;              // 用于平滑,检测上一个画面
-    std::vector<LightBar> last_light_bars_;  // 最近一帧灯条（供调试绘制）
-    cv::Mat debug_mask_;                 // 保存 mask 供调试
+    std::vector<ArmorPlate> last_armors_;     // W6: 上一帧装甲板列表(多目标平滑)
+    std::vector<LightBar> last_light_bars_;  // 最近一帧灯条
+    cv::Mat debug_mask_;
 };
 
 }  // namespace armor_detector

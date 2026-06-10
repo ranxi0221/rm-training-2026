@@ -492,3 +492,22 @@ MindVision SDK 报 `user control fd open failed` 但不影响图像采集（系 
 
 本地 bag 路径：`project/armor_detector/bags/armor_test`（3 秒，含 /image_raw + /armor_result + /armor_debug_image）
 详细介绍在 [project/armor_detector/README.md]
+
+## 第六周：配对问题定向改进 + 多装甲板支持
+
+详细记录：[project/armor_detector/README.md#w6-改进记录](project/armor_detector/README.md#w6-改进记录2026-06-10)
+
+### 选方向：配对问题
+灯条能检测到但黄框不稳定（倾斜变三角形、长方形掉框、多装甲板只框一个）。
+
+### 改动内容
+- 修复 `matchArmorPlate` 角点提取 bug（右灯条错取左边缘 → 每灯条独立取极值）
+- 红蓝按颜色分组配对，不再混排漏配
+- `detect()` 返回多装甲板，同画面同时框红+蓝
+- 配对参数放宽：`pair_max_dy: 350`, `pair_min_dx: 5`, `pair_max_dx: 2500`
+
+### 效果
+倾斜 30° 黄框稳定、长方形装甲板不掉、红蓝同画面各出一个框。
+
+### 未解决
+亮环境光照适应、倾斜 > 30°、同色多目标。

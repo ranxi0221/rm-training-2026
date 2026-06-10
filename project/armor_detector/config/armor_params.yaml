@@ -6,49 +6,52 @@ armor_detector_node:
     enable_debug: true                  # 是否发布调试图像
 
     # ---- 预处理 ----
-    brightness_alpha: 1.0               # 不降亮度（3ms曝光下图像已经很暗，V均值=7）
-    enable_clahe: false                 # ★ 关闭CLAHE！暗图上CLAHE只会放大噪声
+    brightness_alpha: 1.0               # 不降亮度（画面本身已经很暗）
+    enable_clahe: false                 # 暗环境不需要CLAHE
     clahe_clip: 1.5
-    clahe_tile: 8                       # CLAHE 网格大小（像素）
+    clahe_tile: 8
 
     # ---- 红色 HSV 阈值 ----
     # 深红色段（H: 0~10）
     red1_h_low: 0
     red1_h_high: 10
-    red1_s_low: 80                     # 远距离红灯条较暗，降低饱和度要求
+    red1_s_low: 20                     # W6: 降低S接收过曝中心
     red1_s_high: 255
-    red1_v_low: 50
+    red1_v_low: 80                     # W6: 提高V过滤暗噪点
     red1_v_high: 255
     # 浅红 / 过曝段（H: 170~179）
     red2_h_low: 170
     red2_h_high: 179
-    red2_s_low: 80
+    red2_s_low: 20                     # W6: 同上
     red2_s_high: 255
-    red2_v_low: 50
+    red2_v_low: 80                     # W6: 同上
     red2_v_high: 255
 
     # ---- 蓝色 HSV 阈值 ----
-    blue_h_low: 100                    # 收紧蓝色色相范围（蓝色灯条H=115）
-    blue_h_high: 125
-    blue_s_low: 120                    # 蓝色灯条S=234，此阈值足够
+    blue_h_low: 90
+    blue_h_high: 135
+    blue_s_low: 40                     # W6: 降低S接收灯条过曝中心(偏白, S低)
     blue_s_high: 255
-    blue_v_low: 100                    # 蓝色灯条V=188，提高V下限滤暗噪点
+    blue_v_low: 120                    # W6: 提高V过滤暗部满天星噪点
     blue_v_high: 255
 
     # ---- 形态学去噪 ----
-    morph_kernel_size: 7               # ★ 加大核，更多去噪
-    enable_morph_open: true
+    morph_kernel_size: 5               # W6: 增大核，闭运算填充灯条中心的黑色空洞
+    enable_morph_open: false
     enable_morph_close: true
 
     # ---- 灯条筛选 ----
-    light_min_area: 20.0               # ★ 减小，允许远距离小灯条
-    light_max_area: 10000.0
-    light_max_ratio: 1.0
+    light_min_area: 10.0              # W6: 远距离灯条很小，不能太高
+    light_max_area: 50000.0          # W6: 近距离灯条很大，放宽上限
+    light_max_ratio: 1.5               # W6: 放宽宽高比，倾斜时灯条看起来更宽
 
     # ---- 装甲板配对 ----
-    pair_max_dy: 80.0                   # ★ 放宽Y偏差，适应远距离红色灯条的位置抖动
-    pair_min_dx: 30.0                   # ★ 放宽最小间距，远距离灯条在画面中更近
-    pair_max_dx: 1200.0
+    pair_max_dy: 350.0                  # W6: 长方形装甲板倾斜时Y偏差大(1500*sin20°≈510px)
+    pair_min_dx: 5.0                    # W6: 远距离灯条间距极小
+    pair_max_dx: 2500.0
 
     # ---- 时序平滑 ----
     smooth_alpha: 0.3                   # 降低平滑，减少黄框延迟（0.7太卡）
+
+    # ---- 自适应亮度 ----
+    enable_adaptive_brightness: false   # W6: 默认关闭(暗环境)。开灯/高曝光时改为true
