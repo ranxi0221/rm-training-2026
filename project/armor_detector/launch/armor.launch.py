@@ -18,7 +18,8 @@ def generate_launch_description():
     target_color = LaunchConfiguration('target_color', default='red')
     image_topic  = LaunchConfiguration('image_topic',  default='/image_raw')
     bag_path     = LaunchConfiguration('bag_path',     default='')
-    enable_debug = LaunchConfiguration('enable_debug', default='true')
+    enable_debug     = LaunchConfiguration('enable_debug', default='true')
+    digit_model_path = LaunchConfiguration('digit_model_path', default='')
 
     # ---- 条件判断 ----
     is_camera = PythonExpression(["'", input_source, "' == 'camera'"])
@@ -39,6 +40,8 @@ def generate_launch_description():
             description='bag 文件路径（input_source:=bag 时需指定，本地路径：bags/armor_test）'),
         DeclareLaunchArgument('enable_debug', default_value='true',
             description='是否发布调试图像'),
+        DeclareLaunchArgument('digit_model_path', default_value='',
+            description='数字识别ONNX模型路径'),
 
         # 相机模式：启动迈德威视相机节点
         Node(
@@ -75,6 +78,7 @@ def generate_launch_description():
                 'target_color': target_color,
                 'image_topic': image_topic,
                 'enable_debug': enable_debug,
+                'digit_model_path': digit_model_path,
             }],
         ),
     ])

@@ -1,7 +1,8 @@
-#pragma once//防止头文件被重复
+#pragma once
 #include <opencv2/opencv.hpp>
-#include <vector>//容器
-#include <string>//字符串
+#include <vector>
+#include <string>
+#include "armor_detector/digit_classifier.hpp"
 
 namespace armor_detector
 {
@@ -22,6 +23,7 @@ struct ArmorPlate
     cv::Point2f corners[4];     // 四个角点（左上、左下、右下、右上 顺序）
     cv::Point2f center;         // 中心点
     std::string color;           // "red" 或 "blue"
+    std::string digit;            // W7: 数字识别结果（如"3","sentry"）
 };
 
 // 可调参数
@@ -66,7 +68,10 @@ struct DetectorParams
     float smooth_alpha = 0.7f;        // EMA 平滑系数（越大越平滑）
 
     // ---- 自适应亮度 ----
-    bool enable_adaptive_brightness = true;  // 是否自动根据画面亮度调整HSV阈值
+    bool enable_adaptive_brightness = true;
+
+    // ---- 数字识别 ----
+    std::string digit_model_path = "";   // ONNX 模型路径
 };
 
 // 装甲板检测器
@@ -91,6 +96,9 @@ public:
     // 获取最近一帧的 HSV mask（供调试查看）
     const cv::Mat & getLastMask() const { return debug_mask_; }
 
+    // W7: 加载数字识别模型
+    bool loadDigitModel(const std::string & model_path);
+
     // 调试绘制：在原图上绘制灯条和装甲板（W6: 支持多个装甲板）
     cv::Mat drawDebug(const cv::Mat & bgr,
                       const std::vector<LightBar> & light_bars,
@@ -109,9 +117,10 @@ private:
     std::vector<ArmorPlate> matchArmorPlate(const std::vector<LightBar> & light_bars);
 
     DetectorParams params_;
-    std::vector<ArmorPlate> last_armors_;     // W6: 上一帧装甲板列表(多目标平滑)
+    std::vector<ArmorPlate> last_armors_;     // W6: 上一帧装甲板列表
     std::vector<LightBar> last_light_bars_;  // 最近一帧灯条
     cv::Mat debug_mask_;
+    DigitClassifier digit_classifier_;        // W7: 数字识别
 };
 
 }  // namespace armor_detector

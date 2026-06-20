@@ -12,46 +12,46 @@ armor_detector_node:
     clahe_tile: 8
 
     # ---- 红色 HSV 阈值 ----
-    # 深红色段（H: 0~10）
     red1_h_low: 0
     red1_h_high: 10
-    red1_s_low: 20                     # W6: 降低S接收过曝中心
+    red1_s_low: 30
     red1_s_high: 255
-    red1_v_low: 80                     # W6: 提高V过滤暗噪点
+    red1_v_low: 100
     red1_v_high: 255
     # 浅红 / 过曝段（H: 170~179）
     red2_h_low: 170
     red2_h_high: 179
-    red2_s_low: 20                     # W6: 同上
+    red2_s_low: 30
     red2_s_high: 255
-    red2_v_low: 80                     # W6: 同上
+    red2_v_low: 100
     red2_v_high: 255
 
     # ---- 蓝色 HSV 阈值 ----
-    blue_h_low: 90
-    blue_h_high: 135
-    blue_s_low: 40                     # W6: 降低S接收灯条过曝中心(偏白, S低)
+    blue_h_low: 100
+    blue_h_high: 125
+    blue_s_low: 40
     blue_s_high: 255
-    blue_v_low: 120                    # W6: 提高V过滤暗部满天星噪点
+    blue_v_low: 150
     blue_v_high: 255
 
     # ---- 形态学去噪 ----
-    morph_kernel_size: 5               # W6: 增大核，闭运算填充灯条中心的黑色空洞
-    enable_morph_open: false
+    morph_kernel_size: 3
+    enable_morph_open: true
     enable_morph_close: true
 
     # ---- 灯条筛选 ----
-    light_min_area: 10.0              # W6: 远距离灯条很小，不能太高
-    light_max_area: 50000.0          # W6: 近距离灯条很大，放宽上限
-    light_max_ratio: 1.5               # W6: 放宽宽高比，倾斜时灯条看起来更宽
+    light_min_area: 20.0
+    light_max_area: 50000.0
+    light_max_ratio: 0.6
 
     # ---- 装甲板配对 ----
-    pair_max_dy: 350.0                  # W6: 长方形装甲板倾斜时Y偏差大(1500*sin20°≈510px)
-    pair_min_dx: 5.0                    # W6: 远距离灯条间距极小
+    pair_max_dy: 400.0
+    pair_min_dx: 5.0
     pair_max_dx: 2500.0
 
     # ---- 时序平滑 ----
-    smooth_alpha: 0.3                   # 降低平滑，减少黄框延迟（0.7太卡）
+    smooth_alpha: 0.4
 
     # ---- 自适应亮度 ----
-    enable_adaptive_brightness: false   # W6: 默认关闭(暗环境)。开灯/高曝光时改为true
+    enable_adaptive_brightness: false
+    digit_model_path: ""

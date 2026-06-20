@@ -75,6 +75,9 @@ public:
         // 自适应亮度
         this->declare_parameter<bool>("enable_adaptive_brightness", true);
 
+        // 数字识别
+        this->declare_parameter<std::string>("digit_model_path", "");
+
         // 调试
         this->declare_parameter<bool>("enable_debug", true);
 
@@ -167,6 +170,20 @@ private:
 
         if (bgr.empty()) {
             return;
+        }
+
+        // W7: 图像翻转（统一在入口，后续一切处理基于翻后图）
+        cv::flip(bgr, bgr, -1);
+
+        // 1.5 W7: 延迟加载数字模型
+        static bool model_tried = false;
+        if (!model_tried) {
+            model_tried = true;
+            std::string mp = this->get_parameter("digit_model_path").as_string();
+            RCLCPP_INFO(this->get_logger(), "digit_model_path='%s' len=%zu", mp.c_str(), mp.size());
+            if (!mp.empty() && detector_.loadDigitModel(mp)) {
+                RCLCPP_INFO(this->get_logger(), "Digit model loaded OK");
+            }
         }
 
         // 2. 调用检测器

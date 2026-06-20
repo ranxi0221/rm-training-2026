@@ -124,10 +124,3 @@ OpenCV 装甲板识别
     增加跟踪：利用前一帧检测结果预测当前帧位置。
 
     封装 ROS2 节点：将 processFrame 接入 ROS2 图像订阅回调，发布装甲板位置信息。
-
-## 输出视频下载
-
-由于视频文件较大，已上传至网盘，请通过以下链接下载：
-
-链接: https://pan.baidu.com/s/1-KawvjrU4VQxM1UE4ildnw 
-提取码: 2bcc 

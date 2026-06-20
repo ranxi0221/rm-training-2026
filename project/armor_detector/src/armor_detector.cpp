@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cmath>
 #include <string>
+#include <map>
 
 namespace armor_detector
 {
@@ -24,6 +25,11 @@ void ArmorDetector::setParams(const DetectorParams & params)
 const DetectorParams & ArmorDetector::getParams() const
 {
     return params_;
+}
+
+bool ArmorDetector::loadDigitModel(const std::string & model_path)
+{
+    return digit_classifier_.loadModel(model_path);
 }
 
 // 预处理：降低亮度 + CLAHE 增强对比度
@@ -58,7 +64,7 @@ cv::Mat ArmorDetector::preprocess(const cv::Mat & bgr)
 
 // 提取灯条
 std::vector<LightBar> ArmorDetector::extractLightBars(
-    const cv::Mat & /*bgr*/,
+    const cv::Mat & bgr,
     const cv::Mat & hsv,
     const std::string & color)
 {
@@ -86,6 +92,27 @@ std::vector<LightBar> ArmorDetector::extractLightBars(
     }
     else {
         return {};  // 不支持的颜色
+    }
+
+    // W7 BGR纯度预过滤：绝对值+比例双重要求
+    {
+        std::vector<cv::Mat> bgr_chans;
+        cv::split(bgr, bgr_chans);
+        cv::Mat purity;
+        if (color == "blue") {
+            cv::Mat bright, dom_r, dom_g;
+            cv::compare(bgr_chans[0], 120, bright, cv::CMP_GT); // B>120
+            cv::compare(bgr_chans[0], bgr_chans[2] * 1.7, dom_r, cv::CMP_GT);
+            cv::compare(bgr_chans[0], bgr_chans[1] * 1.7, dom_g, cv::CMP_GT);
+            purity = bright & dom_r & dom_g;
+        } else {
+            cv::Mat bright, dom_b, dom_g;
+            cv::compare(bgr_chans[2], 120, bright, cv::CMP_GT); // R>120
+            cv::compare(bgr_chans[2], bgr_chans[0] * 1.7, dom_b, cv::CMP_GT);
+            cv::compare(bgr_chans[2], bgr_chans[1] * 1.7, dom_g, cv::CMP_GT);
+            purity = bright & dom_b & dom_g;
+        }
+        mask = mask & purity;
     }
 
     // 形态学去噪
@@ -197,6 +224,14 @@ std::vector<ArmorPlate> ArmorDetector::matchArmorPlate(const std::vector<LightBa
                 float dy = std::fabs(same_color[i].rect.center.y - same_color[j].rect.center.y);
                 if (dy > params_.pair_max_dy) continue;
                 if (dx < params_.pair_min_dx || dx > params_.pair_max_dx) continue;
+                // W7: 两个灯条必须高度相近（真配对两灯条尺寸一致）
+                float h1 = std::max(same_color[i].rect.size.height, same_color[i].rect.size.width);
+                float h2 = std::max(same_color[j].rect.size.height, same_color[j].rect.size.width);
+                float w1 = std::min(same_color[i].rect.size.width, same_color[i].rect.size.height);
+                float w2 = std::min(same_color[j].rect.size.width, same_color[j].rect.size.height);
+                if (h1 < 5 || h2 < 5) continue;
+                if (std::min(h1, h2) / std::max(h1, h2) < 0.4f) continue; // 高度差>2.5×拒
+                if (std::min(w1, w2) / std::max(w1, w2) < 0.3f) continue; // 宽度差>3×拒
 
                 ArmorPlate armor;
                 cv::Point2f l_top, l_bot, r_top, r_bot;
@@ -243,13 +278,26 @@ std::vector<ArmorPlate> ArmorDetector::detect(const cv::Mat & bgr,
     int saved_red2_sl = params_.red2_s_low, saved_red2_sh = params_.red2_s_high;
     int saved_red2_vl = params_.red2_v_low;
     int saved_blue_sl  = params_.blue_s_low,  saved_blue_sh  = params_.blue_s_high;
-    int saved_blue_vl  = params_.blue_v_low;
+    int saved_blue_vl  = params_.blue_v_low,  saved_blue_vh  = params_.blue_v_high;
+    int saved_blue_hl  = params_.blue_h_low,  saved_blue_hh  = params_.blue_h_high;
+    float saved_light_min = params_.light_min_area;
+    float saved_pair_dy   = params_.pair_max_dy;
+    float saved_pair_dx_min = params_.pair_min_dx;
+    float saved_ratio     = params_.light_max_ratio;
+    float saved_smooth    = params_.smooth_alpha;
+    bool saved_morph_open = params_.enable_morph_open;
+    int saved_morph_k     = params_.morph_kernel_size;
 
     if (params_.enable_adaptive_brightness) {
-        // 亮环境：进一步降低S(接收过曝中心)，大幅提高V(过滤背景)
-        params_.red1_s_low = 10;  params_.red1_v_low = 150;
-        params_.red2_s_low = 10;  params_.red2_v_low = 150;
-        params_.blue_s_low  = 20; params_.blue_v_low  = 180;
+        params_.red1_s_low = 30;  params_.red1_v_low = 100;
+        params_.red2_s_low = 30;  params_.red2_v_low = 100;
+        params_.blue_s_low  = 40; params_.blue_v_low  = 180; // 放松保持蓝灯条稳定
+        params_.blue_h_low  = 100; params_.blue_h_high = 120;
+        params_.light_min_area = 30;
+        params_.light_max_ratio = 0.5f;
+        params_.pair_max_dy    = 500;
+        params_.pair_min_dx    = 3;
+        params_.smooth_alpha   = 0.9f;
     }
 
     // 3. 提取灯条
@@ -270,11 +318,75 @@ std::vector<ArmorPlate> ArmorDetector::detect(const cv::Mat & bgr,
     params_.red2_s_low = saved_red2_sl; params_.red2_s_high = saved_red2_sh;
     params_.red2_v_low = saved_red2_vl;
     params_.blue_s_low  = saved_blue_sl;  params_.blue_s_high  = saved_blue_sh;
-    params_.blue_v_low  = saved_blue_vl;
+    params_.blue_v_low  = saved_blue_vl;  params_.blue_v_high  = saved_blue_vh;
+    params_.blue_h_low  = saved_blue_hl;  params_.blue_h_high  = saved_blue_hh;
+    params_.light_min_area = saved_light_min;
+    params_.pair_max_dy    = saved_pair_dy;
+    params_.pair_min_dx    = saved_pair_dx_min;
+    params_.light_max_ratio = saved_ratio;
+    params_.smooth_alpha    = saved_smooth;
+    params_.enable_morph_open = saved_morph_open;
+    params_.morph_kernel_size = saved_morph_k;
 
     // 4. 配对装甲板
     auto armors = matchArmorPlate(all_lights);
     last_light_bars_ = all_lights;
+
+    // 3.5 LED验证：峰值比过滤反光（全模式生效，阈值自适应）
+    {
+        cv::Mat gray;
+        cv::cvtColor(processed, gray, cv::COLOR_BGR2GRAY);
+        std::vector<LightBar> verified;
+        for (const auto & lb : all_lights) {
+            int cx = (int)lb.rect.center.x, cy = (int)lb.rect.center.y;
+            cv::Rect croi(cx-4, cy-4, 8, 8);
+            cv::Rect eroi(cx-12, cy-12, 24, 24);
+            croi &= cv::Rect(0, 0, gray.cols, gray.rows);
+            eroi  &= cv::Rect(0, 0, gray.cols, gray.rows);
+            if (croi.area() < 9 || eroi.area() < 16) continue;
+            // 峰值比：真LED中心极亮，峰值>>平均值
+            double max_gray, mean_gray;
+            cv::minMaxLoc(gray(croi), nullptr, &max_gray, nullptr, nullptr);
+            mean_gray = cv::mean(gray(croi))[0];
+            double edge_mean = cv::mean(gray(eroi))[0];
+            if (max_gray < 180 || max_gray < edge_mean * 2.5 || max_gray < mean_gray * 1.5) continue;
+
+            if (params_.enable_adaptive_brightness) {
+                cv::Mat bgr_roi = processed(croi);
+                std::vector<cv::Mat> chans; cv::split(bgr_roi, chans);
+                double maxB, maxG, maxR;
+                cv::minMaxLoc(chans[0], nullptr, &maxB);
+                cv::minMaxLoc(chans[1], nullptr, &maxG);
+                cv::minMaxLoc(chans[2], nullptr, &maxR);
+                if (lb.color == "blue" && (maxB < maxR * 1.5 || maxB < maxG * 1.5)) continue;
+                if (lb.color == "red"  && (maxR < maxB * 1.5 || maxR < maxG * 1.5)) continue;
+            }
+
+            verified.push_back(lb);
+        }
+        all_lights = verified;
+    }
+
+    // 4.5 每色只保留面积最大的1个装甲板（暗/亮模式都生效）
+    {
+        auto bestPerColor = [&](const std::string & color) -> ArmorPlate {
+            ArmorPlate best; best.detected = false;
+            float best_area = 0;
+            for (const auto & a : armors) {
+                if (a.color != color) continue;
+                cv::Rect2f bb(a.corners[0], a.corners[2]);
+                float area = bb.area();
+                if (area > best_area) { best_area = area; best = a; }
+            }
+            return best;
+        };
+        std::vector<ArmorPlate> filtered;
+        for (const auto & c : {"red", "blue"}) {
+            auto best = bestPerColor(c);
+            if (best.detected) filtered.push_back(best);
+        }
+        armors = filtered;
+    }
 
     // 5. 时序平滑（EMA）—— 按颜色匹配上一帧装甲板
     if (!armors.empty() && !last_armors_.empty()) {
@@ -291,6 +403,23 @@ std::vector<ArmorPlate> ArmorDetector::detect(const cv::Mat & bgr,
                     }
                     break;
                 }
+            }
+        }
+    }
+
+    // 5.5 W7: 数字识别 + 有限帧间记忆（最多5帧，避免假数字锁死）
+    if (digit_classifier_.isLoaded()) {
+        static std::map<std::string, std::pair<std::string, int>> memo; // color→{digit, remain}
+        for (auto & armor : armors) {
+            armor.digit = digit_classifier_.classify(processed, armor.corners);
+            // 当前有效数字→更新记忆
+            if (!armor.digit.empty() && armor.digit != "not_armor") {
+                memo[armor.color] = {armor.digit, 30};
+            }
+            // 当前为空→从记忆取（剩余帧数>0）
+            else if (memo.count(armor.color) && memo[armor.color].second > 0) {
+                armor.digit = memo[armor.color].first;
+                memo[armor.color].second--;
             }
         }
     }
@@ -332,7 +461,7 @@ cv::Mat ArmorDetector::drawDebug(const cv::Mat & bgr,
     // ---- 绘制装甲板（W6: 支持多个） ----
     for (const auto & armor : armors) {
         if (!armor.detected) continue;
-        cv::Scalar armor_color(0, 255, 255);  // BGR 黄色
+        cv::Scalar armor_color(0, 255, 255);
 
         for (int i = 0; i < 4; ++i) {
             cv::line(dbg, armor.corners[i], armor.corners[(i + 1) % 4], armor_color, 3);
@@ -340,10 +469,30 @@ cv::Mat ArmorDetector::drawDebug(const cv::Mat & bgr,
         cv::line(dbg, armor.corners[0], armor.corners[2], cv::Scalar(0, 255, 255), 1, cv::LINE_AA);
         cv::line(dbg, armor.corners[1], armor.corners[3], cv::Scalar(0, 255, 255), 1, cv::LINE_AA);
         cv::circle(dbg, armor.center, 8, cv::Scalar(0, 255, 255), -1);
+    }
 
-        cv::putText(dbg, "ARMOR:" + armor.color,
-            armor.center + cv::Point2f(10, 0),
+    // W7: 翻转文字——在小图上写字→旋转180°→贴到装甲板视觉左上角
+    for (const auto & armor : armors) {
+        if (!armor.detected) continue;
+        std::string label = armor.color + "_" +
+            (armor.digit.empty() ? "?" : armor.digit);
+        cv::Mat text_mat(24, 140, CV_8UC3, cv::Scalar(0,0,0));
+        cv::putText(text_mat, label, cv::Point(4, 18),
             cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 255), 2);
+        cv::Mat text_flip;
+        cv::flip(text_mat, text_flip, -1);
+        // 找装甲板视觉左上角(min X, min Y)
+        cv::Point2f tl = armor.corners[0];
+        for (int i = 1; i < 4; ++i) {
+            if (armor.corners[i].x < tl.x) tl.x = armor.corners[i].x;
+            if (armor.corners[i].y < tl.y) tl.y = armor.corners[i].y;
+        }
+        int px = std::max(0, (int)tl.x - 5);
+        int py = std::max(0, (int)tl.y - 28);
+        cv::Rect roi(px, py, text_flip.cols, text_flip.rows);
+        roi &= cv::Rect(0, 0, dbg.cols, dbg.rows);
+        if (roi.width > 10 && roi.height > 10)
+            text_flip(cv::Rect(0, 0, roi.width, roi.height)).copyTo(dbg(roi));
     }
 
     return dbg;

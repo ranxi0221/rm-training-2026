@@ -15,6 +15,7 @@ include_directories(include ${OpenCV_INCLUDE_DIRS})
 # ---- 检测算法库 ----
 add_library(armor_detector_lib
   src/armor_detector.cpp
+  src/digit_classifier.cpp
 )
 ament_target_dependencies(armor_detector_lib
   OpenCV
@@ -46,7 +47,7 @@ install(DIRECTORY include/
   DESTINATION include
 )
 
-install(DIRECTORY launch config
+install(DIRECTORY launch config models
   DESTINATION share/${PROJECT_NAME}
 )
 
